@@ -50,5 +50,8 @@ Then SAM 2 can be used in a few lines as follows for image and video prediction.
 ### Prediction with surgical tool
 
 SAM2/sam2/video_infer.py
+python SAM2/sam2/video_infer.py --input_dir cholec80/annotated_data/video43/ws_0 --output_dir cholec80/annotated_data/video43/ws_0
+
+
 
 
