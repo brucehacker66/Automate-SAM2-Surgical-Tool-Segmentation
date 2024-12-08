@@ -1,84 +1,261 @@
+#%pip install openai==1.55.3 httpx==0.27.2
 import os
 import json
 import glob
+import base64
+import numpy as np
+from openai import OpenAI
 
-# TODO: replace this with actual implementation
-def generate_gpt_output_for_frame(frame_id, frame_file):
-    """
-    Placeholder function simulating GPT-4o output.
-    Replace with actual GPT inference code.
+# CHANGE YOUR API KEY HERE!
+client = OpenAI(
+    api_key = "Your API Key"
+)
 
-    This function should return a Python dictionary structured like:
-    {
-       "frame_id": <int>,
-       "frame_file": <string>,
-       "objects": [
-         {
-           "obj_id": <int>,
-           "points": [[x1, y1], [x2, y2], ...],
-           "labels": [0 or 1, 0 or 1, ...]
-         },
-         ...
-       ]
-    }
-    """
-    # example of returned data.
-    return {
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
+
+# remove excessive characters from chatgpt's response
+def strip_JSON(response):
+    result = response.strip("```")
+    result = result.strip("json")
+    result = json.loads(result)
+    return result
+
+# converting chatgpt's response into our ideal JSON format
+def format_JSON(coordinates,frame_id,frame_file):
+    objects_list = []
+    for obj_id, bbox in coordinates.items():
+        # Convert relative bbox to pixel coordinates (assuming width 854x height 480)
+        width, height = 854, 480
+        top_left_x = int(bbox[0] * width)
+        top_left_y = int(bbox[1] * height)
+        bottom_right_x = int(bbox[2] * width)
+        bottom_right_y = int(bbox[3] * height)
+
+        # SHOULD BE MODIFIED
+        # Create polygon points (top-left, top-right, bottom-right, bottom-left)
+        points = [
+            [top_left_x, top_left_y],
+            [bottom_right_x, top_left_y],
+            [bottom_right_x, bottom_right_y],
+            [top_left_x, bottom_right_y]
+        ]
+
+        # SHOULD BE MODIFIED
+        # Dummy labels (you can adjust as needed)
+        labels = [1]*len(points)
+
+        # Create dictionary objects for JSON output
+        obj_dict = {
+            "obj_id": int(obj_id),
+            "points": points,
+            "labels": labels
+        }
+        objects_list.append(obj_dict)
+
+    frame_result = {
         "frame_id": frame_id,
         "frame_file": frame_file,
-        "objects": [
-            {
-                "obj_id": 1,
-                "points": [
-                    [434, 163],
-                    [494, 218],
-                    [293, 190],
-                    [596, 143],
-                    [610, 438]
-                ],
-                "labels": [1, 1, 0, 0, 0]
-            }
-            # more objects
-        ]
+        "objects": objects_list
     }
+    return frame_result
 
-def process_frames(input_dir, output_json, step=25):
+def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
+    # for first gpt inquiry
+    prompt1 = """I am going to show you images of a gallblader removal surgery,
+    These images contain a white gallblader in the middle of the image, and the following tools only:
+    Left Grasper, Top Grasper, Right Grasper, Bipolar, Hook, Scissors, Clipper, Irrigator, Specimen Bag.
+    We are interested in segmenting the gallblader and the aforementioned tools, and your job is to locate them and provide coordinates in pixels."""
+    # for second gpt inquiry
+    prompt2 = """Now locate the objects you have just identified, on the same image.
+    Return the response **only** in valid JSON format with the following structure:
+    1. Each surgical tool should be identified by a number with the following correspondance to predefined classes:
+    - Gallbladder: 1
+    - Left Grasper: 2
+    - Top Grasper: 3
+    - Right Grasper: 4
+    - Bipolar: 5
+    - Hook: 6
+    - Scissors: 7
+    - Clipper: 8
+    - Irrigator: 9
+    - Specimen Bag: 10
+
+    2. For each detected tool, provide bounding box coordinates (relative to the image width and height, between 0 and 1 and of 3 decimal points precision) in the format:
+    - [top_left_x, top_left_y, bottom_right_x, bottom_right_y].
+
+    3. If no tools are detected, return an empty JSON object (`{}`).
+
+    ### Rules:
+    - Respond strictly in JSON format.
+    - Do not include any explanations, comments, or text outside of the JSON response.
+    - all identifier numbers must have quotation marks.
+    ### Example Output:
+    {
+        "6": [0.052, 0.024, 0.854, 0.953],
+        "2": [0.014, 0.045, 0.917, 0.854]
+    }
+    """
+    all_results = []
+    image_path = input_dir + frame_file
+    # Encode the image for GPT
+    base64_image = encode_image(image_path)
+
+    # First GPT call (analysis)
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are an AI specialized in surgical phase recognition."},
+            {"role": "system", "content": prompt1},
+            {"role": "system", "content": "This is one of the images."},
+            {"role": "user", "content": [
+                {
+                "type": "image_url",
+                "image_url": {"url":  f"data:image/jpeg;base64,{base64_image}"}
+                }
+            ]}
+            #{"role": "system", "content": "List only the classes you see in this image."},
+        ],
+    )
+    print("Analysis response for frame", frame_id, ":", response.choices[0].message.content)
+    assistant_response1 = response.choices[0].message.content
+
+    # Second GPT call (coordinates)
+    response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[
+        {"role": "system", "content": "You are an AI specialized in surgical phase recognition."},
+        {"role": "system", "content": prompt1},
+        {"role": "system", "content": "This is an example of the image."},
+        {"role": "user", "content": [
+            {
+            "type": "image_url",
+            "image_url": {"url":  f"data:image/jpeg;base64,{base64_image}"}
+            }
+        ]},
+        {"role": "assistant", "content": assistant_response1},
+        {"role": "system", "content": prompt2},
+    ]
+    )
+
+    json_response = response.choices[0].message.content
+    print("JSON Response for frame", frame_id, ":", json_response)
+
+    # Convert to Python dictionary
+    try:
+        coordinates = strip_JSON(json_response)
+
+    except json.JSONDecodeError:
+        coordinates = {}
+        
+    if not coordinates:
+        return assistant_response1, None
+    return assistant_response1, format_JSON(coordinates,frame_id,frame_file)
+
+# Getting frame ids from a input JSON file
+def get_frame_ids(frame_ids, input_json):
+    with open(input_json, 'r') as file:
+        input_content = json.load(file)
+    for frame in input_content:
+        frame_ids.append(frame["frame_id"])
+    return frame_ids
+
+# CURRENTLY NOT USED: function to detect new frames to log into prompt.JSON via ChatGPT
+def det_new_frame(input_dir,frame_file_old,frame_file_new,assistant_response1):
+    prompt2 = """Given your analysis of the previous image, now determine whether the new uploaded image contains new surgical tools or some of the tools present in the old image is missing?
+    ### Rules:
+    - Respond "Yes" if any new surgical tools are present in the new image, or if any surgical tools in the previous image is missing.
+    - Respond "No" if no new surgical tools are present in the new image or no surgical tools in the previous image is missing.
+    """
+    # The previously analyzed image
+    image_path_old = input_dir + frame_file_old
+    base64_image_old = encode_image(image_path_old)
+    # The new image to be compared
+    image_path_new = input_dir + frame_file_new
+    base64_image_new = encode_image(image_path_new)
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            #from previous chatgpt analysis
+            {"role": "system", "content": "You are an AI specialized in surgical phase recognition."},
+            {"role": "user", "content": [
+                {
+                "type": "image_url",
+                "image_url": {"url":  f"data:image/jpeg;base64,{base64_image_old}"}
+                }
+            ]},
+            {"role": "assistant", "content": assistant_response1},
+            #comparison between images
+            {"role": "user", "content": [
+                {
+                "type": "image_url",
+                "image_url": {"url":  f"data:image/jpeg;base64,{base64_image_new}"}
+                }
+            ]},
+            {"role": "system", "content": prompt2}
+        ],
+        max_tokens=1
+    )
+    return response.choices[0].message.content #Yes if tools are different, No if not different.
+
+# Main loop over video frames and extract tool data into prompt.JSON
+def process_frames(input_dir, output_json, step=25, input_json = None):
     """
     - input_dir: Directory containing frames (images).
     - output_json: Path to the output JSON file (prompts.json).
-    - step: The interval for selecting key frames. Default every 25 frames.
+    - step: The interval for selecting key frames. Default every 25 frames. If using autodetection, set to 1!
     """
-
     # Find all jpg images in the directory. Adjust extension if needed.
     # Sort them to ensure correct sequential order.
     frame_files = sorted(glob.glob(os.path.join(input_dir, "*.jpg")))
-
     # List to hold all GPT results
     all_results = []
+    frame_ids = []
+    """
+    # placeholder for initial GPT response (for auto identifying new frames)
+    assistant_response1 = ""
+    """
 
     # Iterate through frames, picking every 'step'th frame
-    for i in range(0, len(frame_files), step):
+    if input_json:
+        frame_ids = get_frame_ids(frame_ids, input_json)
+    else:
+        frame_ids = range(0, len(frame_files), step)
+
+    for i in frame_ids:
         frame_path = frame_files[i]
-        
         # Extract frame filename (e.g. "0000000.jpg")
         frame_file = os.path.basename(frame_path)
-        
-        # Extract a numeric frame_id from the index i (optional, can be just i)
+        # Extract a numeric frame_id from the index i
         frame_id = i
+        
+        """
+        # auto identificying new frames via ChatGPT
+        if (i != 0):
+            new_frame = det_new_frame(input_dir, frame_file_prev,frame_file, assistant_response1)
+            print(frame_file, new_frame)
+            if new_frame == "No": 
+                continue
+        frame_file_prev = frame_file
+        """
 
-        # Here you would integrate your GPT pipeline code.
-        # For now, we call our placeholder.
-        gpt_output = generate_gpt_output_for_frame(frame_id, frame_file)
+        # Here integrates GPT pipeline .
+        assistant_response1, gpt_output = generate_gpt_output_for_frame(input_dir, frame_id, frame_file)
 
-        # Append the result to our list
-        all_results.append(gpt_output)
+        if gpt_output:
+            # Append the result to our list
+            all_results.append(gpt_output)
 
     # Once done, write the final JSON file
     with open(output_json, "w") as f:
         json.dump(all_results, f, indent=2)
 
-if __name__ == "__main__":
-    input_dir = "/path/to/your/frames"  # Replace with your frames directory
-    output_json = "prompts.json"
 
-    process_frames(input_dir, output_json, step=25)
+if __name__ == "__main__":
+    input_dir = "/Users/rudyzhang/Desktop/video01/images/"  # Replace with your frames directory
+    input_json = "/Users/rudyzhang/Desktop/pre_prompts.json" # Replace with your input json directory
+    output_json = "/Users/rudyzhang/Desktop/prompts.json" # Replace with your output json directory
+    step = 25
+    process_frames(input_dir, output_json, step, input_json)
