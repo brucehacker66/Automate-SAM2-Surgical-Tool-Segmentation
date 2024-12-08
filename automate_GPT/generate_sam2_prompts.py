@@ -5,11 +5,17 @@ import glob
 import base64
 import numpy as np
 from openai import OpenAI
+import argparse
 
-# CHANGE YOUR API KEY HERE!
-client = OpenAI(
-    api_key = "Your API Key"
-)
+# Retrieve the API key from environment variables
+api_key = os.getenv("OPENAI_API_KEY")
+
+# Check if the API key exists
+if not api_key:
+    raise EnvironmentError("OPENAI_API_KEY environment variable not set.")
+
+# Initialize the OpenAI client
+client = OpenAI(api_key=api_key)
 
 def encode_image(image_path):
     with open(image_path, "rb") as image_file:
@@ -98,7 +104,7 @@ def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
     }
     """
     all_results = []
-    image_path = input_dir + frame_file
+    image_path = os.path.join(input_dir, frame_file)
     # Encode the image for GPT
     base64_image = encode_image(image_path)
 
@@ -248,14 +254,26 @@ def process_frames(input_dir, output_json, step=25, input_json = None):
             # Append the result to our list
             all_results.append(gpt_output)
 
-    # Once done, write the final JSON file
+    # Ensure the output JSON file exists in the input JSON's directory
+    output_dir = os.path.dirname(output_json)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Write the final JSON file
     with open(output_json, "w") as f:
         json.dump(all_results, f, indent=2)
 
-
 if __name__ == "__main__":
-    input_dir = "/Users/rudyzhang/Desktop/video01/images/"  # Replace with your frames directory
-    input_json = "/Users/rudyzhang/Desktop/pre_prompts.json" # Replace with your input json directory
-    output_json = "/Users/rudyzhang/Desktop/prompts.json" # Replace with your output json directory
-    step = 25
-    process_frames(input_dir, output_json, step, input_json)
+    parser = argparse.ArgumentParser(description="Process video frames and generate a GPT-based JSON file.")
+    parser.add_argument("--input_dir", required=True, help="Directory containing video frames (images).")
+    parser.add_argument("--input_json", required=True, help="Path to the input JSON file.")
+    parser.add_argument("--step", type=int, default=25, help="Interval for selecting frames (default: 25).")
+    args = parser.parse_args()
+
+    input_dir = args.input_dir
+    input_json = args.input_json
+
+    # Define output JSON file path
+    output_json = os.path.join(os.path.dirname(input_json), "gpt_generated_prompts.json")
+
+    process_frames(input_dir, output_json, args.step, input_json)

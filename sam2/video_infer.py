@@ -185,7 +185,7 @@ def parse_arguments():
     parser.add_argument("--input_dir", type=str, required=True, help="Path to the input directory.")
     parser.add_argument("--input_spec", type=str, default="images", help="Path to the output directory.")
     parser.add_argument("--output_dir", type=str, required=True, help="Path to the output directory.")
-    parser.add_argument("--output_spec", type=str, default="masks_sam", help="Path to the output directory.")
+    parser.add_argument("--output_spec", type=str, default="masks_sam_gpt", help="Path to the output directory.")
     
     return parser.parse_args()
     
