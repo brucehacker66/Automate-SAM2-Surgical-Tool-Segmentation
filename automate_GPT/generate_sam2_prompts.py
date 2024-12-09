@@ -3,6 +3,7 @@ import os
 import json
 import glob
 import base64
+import random
 import numpy as np
 from openai import OpenAI
 import argparse
@@ -39,18 +40,31 @@ def format_JSON(coordinates,frame_id,frame_file):
         bottom_right_x = int(bbox[2] * width)
         bottom_right_y = int(bbox[3] * height)
 
-        # SHOULD BE MODIFIED
-        # Create polygon points (top-left, top-right, bottom-right, bottom-left)
+        # Create center point as the label 1 point
         points = [
-            [top_left_x, top_left_y],
-            [bottom_right_x, top_left_y],
-            [bottom_right_x, bottom_right_y],
-            [top_left_x, bottom_right_y]
+            [int(np.mean([top_left_x,bottom_right_x])),int(np.mean([top_left_y, bottom_right_y]))]
         ]
 
-        # SHOULD BE MODIFIED
-        # Dummy labels (you can adjust as needed)
-        labels = [1]*len(points)
+        # Create far away points as the label 0 point based on the tool (due to different geometries and orientations)
+        match obj_id:
+            case "2" :
+                points.append([top_left_x -random.randint(5,top_left_x-50),bottom_right_y + random.randint(5, height-bottom_right_y-10)])
+                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-50), top_left_y -random.randint(5,top_left_y-10)])
+            case "8" :
+                points.append([top_left_x -random.randint(5,top_left_x-50),bottom_right_y + random.randint(5, height-bottom_right_y-10)])
+                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-50), top_left_y -random.randint(5,top_left_y-10)])
+            case "1" :
+                points.append([top_left_x -random.randint(20,top_left_x-20),top_left_y])
+                points.append([bottom_right_x + random.randint(20,width - bottom_right_x-20), bottom_right_y])
+            case "10" :
+                points.append([top_left_x -random.randint(20,top_left_x-20),top_left_y])
+                points.append([bottom_right_x + random.randint(20,width - bottom_right_x-20), bottom_right_y])
+            case _:
+                points.append([top_left_x -random.randint(5,top_left_x-50),top_left_y -random.randint(5,top_left_y-10)])
+                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-50), bottom_right_y + random.randint(5, height-bottom_right_y-10)])
+
+        # Labels corresponding to the 1 label 1 point and 2 label 0 points
+        labels = [1,0,0]
 
         # Create dictionary objects for JSON output
         obj_dict = {
@@ -275,5 +289,4 @@ if __name__ == "__main__":
 
     # Define output JSON file path
     output_json = os.path.join(os.path.dirname(input_json), "gpt_generated_prompts.json")
-
     process_frames(input_dir, output_json, args.step, input_json)

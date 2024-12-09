@@ -185,7 +185,8 @@ def parse_arguments():
     parser.add_argument("--input_dir", type=str, required=True, help="Path to the input directory.")
     parser.add_argument("--input_spec", type=str, default="images", help="Path to the output directory.")
     parser.add_argument("--output_dir", type=str, required=True, help="Path to the output directory.")
-    parser.add_argument("--output_spec", type=str, default="masks_sam_gpt", help="Path to the output directory.")
+    parser.add_argument("--output_spec", type=str, default="masks_sam", help="Path to the output directory.")
+    parser.add_argument("--prompts_type", type=str, default="prompts.json", help="prompts type")
     
     return parser.parse_args()
     
@@ -194,7 +195,7 @@ def main():
     args = parse_arguments()
     
     video_dir = os.path.join(args.input_dir, args.input_spec)
-    keyframes_json_path = os.path.join(args.input_dir, "prompts.json")
+    keyframes_json_path = os.path.join(args.input_dir, args.prompts_type)
     output_dir = os.path.join(args.output_dir, args.output_spec)
         
     # Ensure output directory exists
