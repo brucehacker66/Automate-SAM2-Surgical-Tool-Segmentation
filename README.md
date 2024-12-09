@@ -49,14 +49,17 @@ Then SAM 2 can be used in a few lines as follows for image and video prediction.
 
 ### Automate annotation using ChatGPT 
 
+```bash
 export OPENAI_API_KEY="your_openai_api_key"
 python automate_GPT/generate_sam2_prompts.py --input_dir /mnt/disk0/haoding/cholec80/annotated_data/video01/ws_0/images --input_json /mnt/disk0/haoding/cholec80/annotated_data/video01/ws_0/prompts.json
+```
 
 ### Prediction with surgical tool
 
+```bash
 SAM2/sam2/video_infer.py
 python SAM2/sam2/video_infer.py --input_dir cholec80/annotated_data/video43/ws_0 --output_dir cholec80/annotated_data/video43/ws_0
-
+```
 
 
 
