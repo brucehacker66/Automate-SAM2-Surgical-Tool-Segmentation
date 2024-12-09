@@ -92,7 +92,9 @@ def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
     Left Grasper, Top Grasper, Right Grasper, Bipolar, Hook, Scissors, Clipper, Irrigator, Specimen Bag.
     We are interested in segmenting the gallblader and the aforementioned tools, and your job is to locate them and provide coordinates in pixels."""
     # for first gpt inquiry, TODO: add more details.
-    prompt2 = """The surgical tools have the following characteristics: Left Grasper appears on the lower left, Top Grasper appears on the top, Right Grasper appears on the lower right."""
+    prompt2 = """The surgical tools have the following characteristics: 
+    Left Grasper appears on the top left, Top Grasper appears on the very top, Right Grasper appears on the top right, Hook also appears on top right,
+    Clipper appears on the right, Irrigator appears on the right, Scissors appear on the top right, and Specimen Bag appears in the middle."""
     # for second gpt inquiry
     prompt3 = """Now locate the objects you have just identified, on the same image.
     Return the response **only** in valid JSON format with the following structure:
