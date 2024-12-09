@@ -44,24 +44,28 @@ def format_JSON(coordinates,frame_id,frame_file):
         points = [
             [int(np.mean([top_left_x,bottom_right_x])),int(np.mean([top_left_y, bottom_right_y]))]
         ]
-
+        up_dist = top_left_y
+        down_dist = height-bottom_right_y
+        left_dist = top_left_x
+        right_dist = width - bottom_right_x
+        
         # Create far away points as the label 0 point based on the tool (due to different geometries and orientations)
         match obj_id:
-            case "2" :
-                points.append([top_left_x -random.randint(5,top_left_x-20),bottom_right_y + random.randint(5, height-bottom_right_y-10)])
-                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-20), top_left_y -random.randint(5,top_left_y-10)])
-            case "8" :
-                points.append([top_left_x -random.randint(5,top_left_x-20),bottom_right_y + random.randint(5, height-bottom_right_y-10)])
-                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-20), top_left_y -random.randint(5,top_left_y-10)])
-            case "1" :
-                points.append([top_left_x -random.randint(20,top_left_x-20),top_left_y])
-                points.append([bottom_right_x + random.randint(20,width - bottom_right_x-20), bottom_right_y])
-            case "10" :
-                points.append([top_left_x -random.randint(20,top_left_x-20),top_left_y])
-                points.append([bottom_right_x + random.randint(20,width - bottom_right_x-20), bottom_right_y])
-            case _:
-                points.append([top_left_x -random.randint(5,top_left_x-20),top_left_y -random.randint(5,top_left_y-10)])
-                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-20), bottom_right_y + random.randint(5, height-bottom_right_y-10)])
+            case "2" : #lower left and upper right for left grasper
+                points.append([top_left_x - random.randint(0,top_left_x), bottom_right_y + random.randint(0,down_dist)]) #lower left
+                points.append([bottom_right_x + random.randint(0,right_dist), top_left_y - random.randint(0,up_dist)]) #upper right
+            case "8" : #lower left and upper right for clipper
+                points.append([top_left_x - random.randint(0,top_left_x), bottom_right_y + random.randint(0,down_dist)]) #lower left
+                points.append([bottom_right_x + random.randint(0,right_dist), top_left_y - random.randint(0,up_dist)]) #upper right
+            case "1" : #extend left and right for gallbladder
+                points.append([top_left_x - random.randint(0,left_dist), bottom_right_y]) #extend left
+                points.append([bottom_right_x + random.randint(0,right_dist), top_left_y]) #extend right
+            case "10" : #extend left and right for specimen bag
+                points.append([top_left_x - random.randint(0,left_dist), top_left_y]) #extend left
+                points.append([bottom_right_x + random.randint(0,right_dist), bottom_right_y]) #extend right
+            case _: #upper left and lower right for others
+                points.append([top_left_x - random.randint(0,left_dist), top_left_y - random.randint(0,up_dist)]) #upper left
+                points.append([bottom_right_x + random.randint(0,right_dist), bottom_right_y + random.randint(0, down_dist)]) #lower right
 
         # Labels corresponding to the 1 label 1 point and 2 label 0 points
         labels = [1,0,0]
