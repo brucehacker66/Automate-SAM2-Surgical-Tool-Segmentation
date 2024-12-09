@@ -95,6 +95,7 @@ def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
     prompt2 = """The surgical tools have the following characteristics: 
     Left Grasper appears on the top left, Top Grasper appears on the very top, Right Grasper appears on the top right, Hook also appears on top right,
     Clipper appears on the right, Irrigator appears on the right, Scissors appear on the top right, and Specimen Bag appears in the middle."""
+
     # for second gpt inquiry
     prompt3 = """Now locate the objects you have just identified, on the same image.
     Return the response **only** in valid JSON format with the following structure:
