@@ -48,11 +48,11 @@ def format_JSON(coordinates,frame_id,frame_file):
         # Create far away points as the label 0 point based on the tool (due to different geometries and orientations)
         match obj_id:
             case "2" :
-                points.append([top_left_x -random.randint(5,top_left_x-50),bottom_right_y + random.randint(5, height-bottom_right_y-10)])
-                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-50), top_left_y -random.randint(5,top_left_y-10)])
+                points.append([top_left_x -random.randint(5,top_left_x-20),bottom_right_y + random.randint(5, height-bottom_right_y-10)])
+                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-20), top_left_y -random.randint(5,top_left_y-10)])
             case "8" :
-                points.append([top_left_x -random.randint(5,top_left_x-50),bottom_right_y + random.randint(5, height-bottom_right_y-10)])
-                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-50), top_left_y -random.randint(5,top_left_y-10)])
+                points.append([top_left_x -random.randint(5,top_left_x-20),bottom_right_y + random.randint(5, height-bottom_right_y-10)])
+                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-20), top_left_y -random.randint(5,top_left_y-10)])
             case "1" :
                 points.append([top_left_x -random.randint(20,top_left_x-20),top_left_y])
                 points.append([bottom_right_x + random.randint(20,width - bottom_right_x-20), bottom_right_y])
@@ -60,8 +60,8 @@ def format_JSON(coordinates,frame_id,frame_file):
                 points.append([top_left_x -random.randint(20,top_left_x-20),top_left_y])
                 points.append([bottom_right_x + random.randint(20,width - bottom_right_x-20), bottom_right_y])
             case _:
-                points.append([top_left_x -random.randint(5,top_left_x-50),top_left_y -random.randint(5,top_left_y-10)])
-                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-50), bottom_right_y + random.randint(5, height-bottom_right_y-10)])
+                points.append([top_left_x -random.randint(5,top_left_x-20),top_left_y -random.randint(5,top_left_y-10)])
+                points.append([bottom_right_x + random.randint(5,width - bottom_right_x-20), bottom_right_y + random.randint(5, height-bottom_right_y-10)])
 
         # Labels corresponding to the 1 label 1 point and 2 label 0 points
         labels = [1,0,0]
