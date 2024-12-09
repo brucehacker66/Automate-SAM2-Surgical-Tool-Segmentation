@@ -91,8 +91,10 @@ def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
     These images contain a white gallblader in the middle of the image, and the following tools only:
     Left Grasper, Top Grasper, Right Grasper, Bipolar, Hook, Scissors, Clipper, Irrigator, Specimen Bag.
     We are interested in segmenting the gallblader and the aforementioned tools, and your job is to locate them and provide coordinates in pixels."""
+    # for first gpt inquiry, TODO: add more details.
+    prompt2 = """The surgical tools have the following characteristics: Left Grasper appears on the lower left, Top Grasper appears on the top, Right Grasper appears on the lower right."""
     # for second gpt inquiry
-    prompt2 = """Now locate the objects you have just identified, on the same image.
+    prompt3 = """Now locate the objects you have just identified, on the same image.
     Return the response **only** in valid JSON format with the following structure:
     1. Each surgical tool should be identified by a number with the following correspondance to predefined classes:
     - Gallbladder: 1
@@ -121,6 +123,7 @@ def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
         "2": [0.014, 0.045, 0.917, 0.854]
     }
     """
+
     all_results = []
     image_path = os.path.join(input_dir, frame_file)
     # Encode the image for GPT
@@ -133,6 +136,7 @@ def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
         messages=[
             {"role": "system", "content": "You are an AI specialized in surgical phase recognition."},
             {"role": "system", "content": prompt1},
+            {"role": "system", "content": prompt2}, #detail prompt
             {"role": "system", "content": "This is one of the images."},
             {"role": "user", "content": [
                 {
@@ -152,6 +156,7 @@ def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
     messages=[
         {"role": "system", "content": "You are an AI specialized in surgical phase recognition."},
         {"role": "system", "content": prompt1},
+        {"role": "system", "content": prompt2}, #detail prompt
         {"role": "system", "content": "This is an example of the image."},
         {"role": "user", "content": [
             {
@@ -160,7 +165,7 @@ def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
             }
         ]},
         {"role": "assistant", "content": assistant_response1},
-        {"role": "system", "content": prompt2},
+        {"role": "system", "content": prompt3},
     ]
     )
 
@@ -172,8 +177,8 @@ def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
     except json.JSONDecodeError:
         coordinates = {}
     if not coordinates:
-        return assistant_response1, None
-    return assistant_response1, format_JSON(coordinates,frame_id,frame_file, width, height)
+        return None
+    return format_JSON(coordinates,frame_id,frame_file, width, height)
 
 # Getting frame ids from a input JSON file
 def get_frame_ids(frame_ids, input_json):
@@ -182,45 +187,6 @@ def get_frame_ids(frame_ids, input_json):
     for frame in input_content:
         frame_ids.append(frame["frame_id"])
     return frame_ids
-
-# CURRENTLY NOT USED: function to detect new frames to log into prompt.JSON via ChatGPT
-def det_new_frame(input_dir,frame_file_old,frame_file_new,assistant_response1):
-    prompt2 = """Given your analysis of the previous image, now determine whether the new uploaded image contains new surgical tools or some of the tools present in the old image is missing?
-    ### Rules:
-    - Respond "Yes" if any new surgical tools are present in the new image, or if any surgical tools in the previous image is missing.
-    - Respond "No" if no new surgical tools are present in the new image or no surgical tools in the previous image is missing.
-    """
-    # The previously analyzed image
-    image_path_old = input_dir + frame_file_old
-    base64_image_old = encode_image(image_path_old)
-    # The new image to be compared
-    image_path_new = input_dir + frame_file_new
-    base64_image_new = encode_image(image_path_new)
-
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            #from previous chatgpt analysis
-            {"role": "system", "content": "You are an AI specialized in surgical phase recognition."},
-            {"role": "user", "content": [
-                {
-                "type": "image_url",
-                "image_url": {"url":  f"data:image/jpeg;base64,{base64_image_old}"}
-                }
-            ]},
-            {"role": "assistant", "content": assistant_response1},
-            #comparison between images
-            {"role": "user", "content": [
-                {
-                "type": "image_url",
-                "image_url": {"url":  f"data:image/jpeg;base64,{base64_image_new}"}
-                }
-            ]},
-            {"role": "system", "content": prompt2}
-        ],
-        max_tokens=1
-    )
-    return response.choices[0].message.content #Yes if tools are different, No if not different.
 
 # Main loop over video frames and extract tool data into prompt.JSON
 def process_frames(input_dir, output_json, step=25, input_json = None):
@@ -235,10 +201,6 @@ def process_frames(input_dir, output_json, step=25, input_json = None):
     # List to hold all GPT results
     all_results = []
     frame_ids = []
-    """
-    # placeholder for initial GPT response (for auto identifying new frames)
-    assistant_response1 = ""
-    """
 
     # Iterate through frames, picking every 'step'th frame
     if input_json:
@@ -252,19 +214,9 @@ def process_frames(input_dir, output_json, step=25, input_json = None):
         frame_file = os.path.basename(frame_path)
         # Extract a numeric frame_id from the index i
         frame_id = i
-        
-        """
-        # auto identificying new frames via ChatGPT
-        if (i != 0):
-            new_frame = det_new_frame(input_dir, frame_file_prev,frame_file, assistant_response1)
-            print(frame_file, new_frame)
-            if new_frame == "No": 
-                continue
-        frame_file_prev = frame_file
-        """
 
         # Here integrates GPT pipeline .
-        assistant_response1, gpt_output = generate_gpt_output_for_frame(input_dir, frame_id, frame_file)
+        gpt_output = generate_gpt_output_for_frame(input_dir, frame_id, frame_file)
 
         if gpt_output:
             # Append the result to our list
