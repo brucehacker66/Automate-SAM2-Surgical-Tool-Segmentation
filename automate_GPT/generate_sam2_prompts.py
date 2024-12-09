@@ -5,6 +5,7 @@ import glob
 import base64
 import random
 import numpy as np
+from PIL import Image
 from openai import OpenAI
 import argparse
 
@@ -30,11 +31,10 @@ def strip_JSON(response):
     return result
 
 # converting chatgpt's response into our ideal JSON format
-def format_JSON(coordinates,frame_id,frame_file):
+def format_JSON(coordinates,frame_id,frame_file,width,height):
     objects_list = []
     for obj_id, bbox in coordinates.items():
         # Convert relative bbox to pixel coordinates (assuming width 854x height 480)
-        width, height = 854, 480
         top_left_x = int(bbox[0] * width)
         top_left_y = int(bbox[1] * height)
         bottom_right_x = int(bbox[2] * width)
@@ -125,7 +125,8 @@ def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
     image_path = os.path.join(input_dir, frame_file)
     # Encode the image for GPT
     base64_image = encode_image(image_path)
-
+    image = Image.open(image_path) 
+    width, height = image.size
     # First GPT call (analysis)
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -165,17 +166,14 @@ def generate_gpt_output_for_frame(input_dir, frame_id, frame_file):
 
     json_response = response.choices[0].message.content
     print("JSON Response for frame", frame_id, ":", json_response)
-
     # Convert to Python dictionary
     try:
         coordinates = strip_JSON(json_response)
-
     except json.JSONDecodeError:
         coordinates = {}
-        
     if not coordinates:
         return assistant_response1, None
-    return assistant_response1, format_JSON(coordinates,frame_id,frame_file)
+    return assistant_response1, format_JSON(coordinates,frame_id,frame_file, width, height)
 
 # Getting frame ids from a input JSON file
 def get_frame_ids(frame_ids, input_json):
