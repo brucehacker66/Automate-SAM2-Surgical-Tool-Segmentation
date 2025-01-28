@@ -56,7 +56,7 @@ def main():
     ws_idx = 1
     # create directory to store the segments as images
     for phase, segment_lists in segments_dict.items():
-        print(phase, len(segment_lists))
+        print(phase, segment_lists[-1])
         for segment in segment_lists:
             os.makedirs(os.path.join(input_path, f'ws_{ws_idx}'), exist_ok=True)
             segment_dir = os.path.join(input_path, f'ws_{ws_idx}', 'images')
